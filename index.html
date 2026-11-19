@@ -220,4 +220,88 @@
         <div class="card">
           <div class="card-header">
             <div class="card-title">
-              <span>📈</span> Dynamic Micro-Climate Trend
+              <span>📈</span> Dynamic Micro-Climate Trend (Soil Moisture vs Temp vs Humidity)
+            </div>
+            <span style="font-size:0.75rem; color:var(--text-muted); font-family:var(--font-mono);">
+              Sampling: 1Hz C-Filtered
+            </span>
+          </div>
+          <div style="height: 280px; position: relative;">
+            <canvas id="telemetryChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Edge Nodes List -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span>📡</span> Connected Field IoT Edge Nodes
+            </div>
+            <span class="badge-ai" style="font-size:0.7rem;">3 Nodes Active</span>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:0.75rem;">
+            <!-- Node 1 -->
+            <div style="padding:0.75rem; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-weight:600; font-size:0.88rem;">NODE-ESP32-01 · Zone 1 (Open Crop Field)</div>
+                <div style="font-size:0.74rem; color:var(--text-muted);">MCU: ESP32-WROOM-32D | Firmware: v2.4.1-C++ | Kalman Filtered</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:0.8rem; font-weight:700; color:#10b981;">● ONLINE (-58 dBm)</div>
+                <div style="font-size:0.72rem; color:var(--text-secondary);">Battery: 96.2%</div>
+              </div>
+            </div>
+
+            <!-- Node 2 -->
+            <div style="padding:0.75rem; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-weight:600; font-size:0.88rem;">NODE-ESP32-02 · Zone 2 (Greenhouse Tomatoes)</div>
+                <div style="font-size:0.74rem; color:var(--text-muted);">MCU: ESP32-S3-WIFI-BLE | Firmware: v2.4.1-C++ | I2C Bus Active</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:0.8rem; font-weight:700; color:#10b981;">● ONLINE (-64 dBm)</div>
+                <div style="font-size:0.72rem; color:var(--text-secondary);">Battery: 91.8%</div>
+              </div>
+            </div>
+
+            <!-- Node 3 -->
+            <div style="padding:0.75rem; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-weight:600; font-size:0.88rem;">NODE-ESP32-03 · Zone 3 (Drip Orchard)</div>
+                <div style="font-size:0.74rem; color:var(--text-muted);">MCU: STM32F401-LoRa | Firmware: v1.8.0-C | Low Power Sleep</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:0.8rem; font-weight:700; color:#10b981;">● ONLINE (-72 dBm)</div>
+                <div style="font-size:0.72rem; color:var(--text-secondary);">Battery: 88.4%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==============================================================
+         TAB 2: AI Crop Recommendation Engine
+         ============================================================== -->
+    <section class="tab-pane" id="tab-crop">
+      <div class="section-banner">
+        <div class="banner-text">
+          <h2>AI Agricultural Decision Intelligence & Crop Recommender</h2>
+          <p>Machine learning model predicts the optimal, highest-yielding crop based on soil chemistry, moisture, and climate.</p>
+        </div>
+        <div class="banner-actions">
+          <div class="tech-pill-group">
+            </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <!-- Soil & Environment Input Controls -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span>🧪</span> Soil & Climatic Parameters</div>
+            <span style="font-size:0.75rem; color:var(--text-muted);">Quick-select soil type:</span>
+          </div>
+
+          <!-- Preset
