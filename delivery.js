@@ -2,7 +2,7 @@
    Needs Leaflet (loaded in index.html). Orders are stored in localStorage ('agri_orders') together with lat/lng. */
 const Delivery = {
   OWNERS: ['yogesh@agrotech.com'],               // <-- only these accounts can see the Delivery Map. Add your own email here.
-  FARM: {lat: 28.9931, lng: 77.0151 },         // <-- your farm location (sonipat, Haryana)
+  FARM: { lat: 28.9931, lng: 77.0151 },         // <-- your farm location (sonipat, Haryana)
   COLORS: { Placed: '#f59e0b', Packed: '#3b82f6', Out: '#8b5cf6', Delivered: '#10b981' },
   map: null, layer: null, line: null, sel: null, seen: null, _repaired: false,
 
