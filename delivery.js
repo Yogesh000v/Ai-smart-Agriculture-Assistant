@@ -2,9 +2,43 @@
    Needs Leaflet (loaded in index.html). Orders are stored in localStorage ('agri_orders') together with lat/lng. */
 const Delivery = {
   OWNERS: ['admin@agrotech.com'],               // <-- only these accounts can see the Delivery Map. Add your own email here.
-  FARM: { lat: 28.8955, lng: 76.6066 },         // <-- your farm location (default: Rohtak, Haryana)
+  FARM: { lat: 28.8955, lng: 76.6066 },         // <-- your farm location (Rohtak, Haryana)
   COLORS: { Placed: '#f59e0b', Packed: '#3b82f6', Out: '#8b5cf6', Delivered: '#10b981' },
-  map: null, layer: null, line: null, sel: null, seen: null,
+  map: null, layer: null, line: null, sel: null, seen: null, _repaired: false,
+
+  // Built-in Haryana & major Indian locations + common spelling variants
+  KNOWN_PLACES: {
+    'charkhi dadri': { lat: 28.5921, lng: 76.2653 },
+    'charkhi dari': { lat: 28.5921, lng: 76.2653 },
+    'dadri': { lat: 28.5921, lng: 76.2653 },
+    '127306': { lat: 28.5921, lng: 76.2653 },
+    'sonipat': { lat: 28.9931, lng: 77.0151 },
+    'sonepat': { lat: 28.9931, lng: 77.0151 },
+    '131001': { lat: 28.9931, lng: 77.0151 },
+    'rohtak': { lat: 28.8955, lng: 76.6066 },
+    '124001': { lat: 28.8955, lng: 76.6066 },
+    'bhiwani': { lat: 28.7975, lng: 76.1322 },
+    'hisar': { lat: 29.1492, lng: 75.7217 },
+    'jhajjar': { lat: 28.6063, lng: 76.6565 },
+    'gurugram': { lat: 28.4595, lng: 77.0266 },
+    'gurgaon': { lat: 28.4595, lng: 77.0266 },
+    'faridabad': { lat: 28.4089, lng: 77.3178 },
+    'karnal': { lat: 29.6857, lng: 76.9905 },
+    'panipat': { lat: 29.3909, lng: 76.9635 },
+    'ambala': { lat: 30.3782, lng: 76.7767 },
+    'jind': { lat: 29.3160, lng: 76.3149 },
+    'rewari': { lat: 28.1920, lng: 76.6191 },
+    'mahendragarh': { lat: 28.2683, lng: 76.1518 },
+    'narnaul': { lat: 28.0444, lng: 76.1083 },
+    'sirsa': { lat: 29.5349, lng: 75.0289 },
+    'fatehabad': { lat: 29.5152, lng: 75.4555 },
+    'kaithal': { lat: 29.8015, lng: 76.3996 },
+    'kurukshetra': { lat: 29.9695, lng: 76.8783 },
+    'yamunanagar': { lat: 30.1290, lng: 77.2674 },
+    'panchkula': { lat: 30.6942, lng: 76.8606 },
+    'palwal': { lat: 28.1487, lng: 77.3320 },
+    'delhi': { lat: 28.6139, lng: 77.2090 }
+  },
 
   t: k => window.I18N ? I18N.t(k) : k,
   esc: s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
@@ -22,6 +56,76 @@ const Delivery = {
   tiles() { return L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }); },
   pin(color, emoji) { return L.divIcon({ className: '', iconSize: [34, 34], iconAnchor: [17, 32], html: `<div style="width:34px;height:34px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${color};border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center"><span style="transform:rotate(45deg);font-size:15px">${emoji}</span></div>` }); },
 
+  /* Smart Geocoder: resolves full address, PIN code, or known Indian cities */
+  async geocode(rawAddr) {
+    if (!rawAddr) return null;
+    const lower = rawAddr.toLowerCase();
+
+    // 1. Check known city/town names & PIN codes first for instant & typo-proof match
+    for (const [key, coords] of Object.entries(this.KNOWN_PLACES)) {
+      if (lower.includes(key)) {
+        return { lat: coords.lat, lng: coords.lng };
+      }
+    }
+
+    // 2. Clean noise like (143), PIN -, etc. and query OpenStreetMap Nominatim
+    const cleaned = rawAddr
+      .replace(/\([^)]*\)/g, ' ')
+      .replace(/\bpin\s*[-:]?\s*/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    try {
+      const r = await (await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=in&q=' + encodeURIComponent(cleaned))).json();
+      if (r && r[0]) return { lat: +r[0].lat, lng: +r[0].lon };
+    } catch (e) {}
+
+    // 3. Extract 6-digit Indian PIN code and look up postal district
+    const pinMatch = rawAddr.match(/\b([1-9]\d{5})\b/);
+    if (pinMatch) {
+      const pin = pinMatch[1];
+      try {
+        const rPin = await (await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=in&postalcode=' + pin)).json();
+        if (rPin && rPin[0]) return { lat: +rPin[0].lat, lng: +rPin[0].lon };
+      } catch (e) {}
+
+      try {
+        const po = await (await fetch('https://api.postalpincode.in/pincode/' + pin)).json();
+        const postOffice = po?.[0]?.PostOffice?.[0];
+        if (postOffice) {
+          const districtQuery = `${postOffice.District}, ${postOffice.State}, India`;
+          const rDist = await (await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=in&q=' + encodeURIComponent(districtQuery))).json();
+          if (rDist && rDist[0]) return { lat: +rDist[0].lat, lng: +rDist[0].lon };
+        }
+      } catch (e) {}
+    }
+
+    return null;
+  },
+
+  /* Repair old orders that got stuck on FARM coordinates */
+  async repairOldOrders() {
+    if (this._repaired) return;
+    this._repaired = true;
+    const os = this.orders();
+    let changed = false;
+    for (const o of os) {
+      const isDefaultFarm = Math.abs((+o.lat || 0) - this.FARM.lat) < 0.0005 && Math.abs((+o.lng || 0) - this.FARM.lng) < 0.0005;
+      if (isDefaultFarm && o.address) {
+        const found = await this.geocode(o.address);
+        if (found && (Math.abs(found.lat - this.FARM.lat) > 0.001 || Math.abs(found.lng - this.FARM.lng) > 0.001)) {
+          o.lat = found.lat;
+          o.lng = found.lng;
+          changed = true;
+        }
+      }
+    }
+    if (changed) {
+      this.saveOrders(os);
+      if (window.App?.activeTab === 'tab-delivery') this.build(true);
+    }
+  },
+
   /* ---------- Customer side: ask for delivery location at checkout ---------- */
   ask(cb) {
     if (!window.Market) return cb({});
@@ -36,30 +140,47 @@ const Delivery = {
       <div id="dlPickMap" style="height:210px;border-radius:10px;border:1px solid var(--border-color);margin-bottom:.8rem"></div>
       <button class="btn btn-primary" id="dlGo" style="width:100%;padding:.7rem;font-weight:700">${t('dl_confirm')}</button></div>`);
     const $ = id => document.getElementById(id);
-    let pos = null, marker = null, map = null;
+    let pos = null, marker = null, map = null, typeTimer = null;
     if (window.L) {
-      map = L.map('dlPickMap').setView([this.FARM.lat, this.FARM.lng], 11); this.tiles().addTo(map);
+      map = L.map('dlPickMap').setView([this.FARM.lat, this.FARM.lng], 9); this.tiles().addTo(map);
       setTimeout(() => map.invalidateSize(), 150);
       map.on('click', ev => set(ev.latlng.lat, ev.latlng.lng));
     } else $('dlPickMap').innerHTML = '<p style="padding:1rem;font-size:.8rem">Map library could not load (check internet).</p>';
     const set = (lat, lng, zoom) => {
       pos = { lat: +lat.toFixed(6), lng: +lng.toFixed(6) };
-      if (marker) marker.setLatLng([lat, lng]); else marker = L.marker([lat, lng], { icon: this.pin('#ef4444', '🏠') }).addTo(map);
-      map.setView([lat, lng], zoom || Math.max(map.getZoom(), 15)); $('dlOk').textContent = t('dl_saved');
+      if (map) {
+        if (marker) marker.setLatLng([lat, lng]); else marker = L.marker([lat, lng], { icon: this.pin('#ef4444', '🏠') }).addTo(map);
+        map.setView([lat, lng], zoom || Math.max(map.getZoom(), 13));
+      }
+      $('dlOk').textContent = t('dl_saved');
+    };
+    const findAddress = async (silent) => {
+      const q = $('dlAddr').value.trim(); if (!q) return null;
+      const found = await this.geocode(q);
+      if (found) { set(found.lat, found.lng, 13); return found; }
+      if (!silent) App.toast(t('dl_locfail'), 'error');
+      return null;
+    };
+    $('dlAddr').oninput = () => {
+      pos = null;
+      $('dlOk').textContent = '';
+      clearTimeout(typeTimer);
+      typeTimer = setTimeout(() => findAddress(true), 750);
     };
     $('dlGeo').onclick = () => {
       if (!navigator.geolocation) return App.toast(t('dl_locfail'), 'error');
-      navigator.geolocation.getCurrentPosition(p => set(p.coords.latitude, p.coords.longitude), () => App.toast(t('dl_locfail'), 'error'), { enableHighAccuracy: true, timeout: 12000 });
+      navigator.geolocation.getCurrentPosition(p => set(p.coords.latitude, p.coords.longitude, 15), () => App.toast(t('dl_locfail'), 'error'), { enableHighAccuracy: true, timeout: 12000 });
     };
-    $('dlFind').onclick = async () => {
-      const q = $('dlAddr').value.trim(); if (!q) return;
-      try { const r = await (await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=in&q=' + encodeURIComponent(q))).json(); if (r[0]) set(+r[0].lat, +r[0].lon, 16); else App.toast(t('dl_locfail'), 'error'); }
-      catch (err) { App.toast(t('dl_locfail'), 'error'); }
-    };
-    $('dlGo').onclick = () => {
+    $('dlFind').onclick = () => findAddress(false);
+    $('dlGo').onclick = async () => {
       const d = { name: $('dlName').value.trim(), phone: $('dlPhone').value.trim(), address: $('dlAddr').value.trim() };
       if (!d.name) return window.App?.toast('Please enter your full name.', 'error');
       if (!d.address) return window.App?.toast('Please enter your delivery address.', 'error');
+      if (!pos) {
+        $('dlGo').disabled = true;
+        await findAddress(true);
+        $('dlGo').disabled = false;
+      }
       const finalPos = pos || { lat: this.FARM.lat, lng: this.FARM.lng };
       cb({ ...d, ...finalPos });
     };
@@ -86,10 +207,8 @@ const Delivery = {
       .dl-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:12px;padding:.75rem;cursor:pointer;font-size:.8rem}.dl-card.on{border-color:var(--primary);box-shadow:0 0 0 2px rgba(16,185,129,.25)}.dl-card h4{margin:0 0 .2rem;font-size:.9rem}.dl-card .m{color:var(--text-muted)}
       .dl-row{display:flex;gap:.4rem;align-items:center;justify-content:space-between;margin-top:.5rem;flex-wrap:wrap}.dl-card select{font-size:.75rem;padding:.2rem .3rem}.dl-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:.3rem}`;
     document.head.appendChild(st);
-    // patch tab switching: refresh map when the tab opens
     const sw = App.switchTab.bind(App);
     App.switchTab = id => { sw(id); if (id === 'tab-delivery') this.show(); };
-    // re-check owner access whenever login state changes
     const hdr = Auth.updateHeaderProfile.bind(Auth);
     Auth.updateHeaderProfile = () => { hdr(); this.access(); };
     document.addEventListener('langchange', () => { if (this.isOwner()) this.build(true); });
@@ -115,6 +234,7 @@ const Delivery = {
 
   show() {
     if (!this.isOwner()) return;
+    this.repairOldOrders();
     this.build();
     setTimeout(() => this.map?.invalidateSize(), 60);
     setTimeout(() => this.map?.invalidateSize(), 200);
