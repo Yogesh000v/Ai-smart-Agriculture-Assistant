@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Smart Agriculture Assistant - Full-Stack Precision Farming</title>
+  
+  <!-- Inter & Mono Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Chart.js for real-time telemetry graphs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="extras.css">
+
+  <!-- Leaflet map (delivery tracking) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+
+  <!-- Top Application Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-icon">🌱</div>
+        <div class="brand-text">
+          <h1>AI Smart Agriculture <span class="badge-ai">Precision Farming</span></h1>
+          <p>Smart sensing · AI crop advice · Automated irrigation · Farm marketplace</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Live System Connection Pill -->
+        <div class="status-pill" id="systemStatusPill">
+          <div class="status-dot" id="statusDot"></div>
+          <span id="statusText">Connecting Services...</span>
+        </div>
+
+        <!-- User Authentication & Profile Widget -->
+        <div id="authHeaderWidget">
+          <button class="btn btn-secondary btn-sm" id="openAuthModalBtn" style="gap:0.35rem;">
+            👤 Sign In / Register
+          </button>
+        </div>
+
+        <!-- Theme Toggle Button -->
+        <button class="theme-toggle-btn" id="themeToggleBtn" title="Toggle Dark/Light Mode">☀️</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="nav-tabs-wrapper">
+    <div class="nav-tabs">
+      <button class="nav-tab-btn active" data-tab="tab-telemetry">
+        <span>📊</span> Farm IoT Cockpit
+      </button>
+      <button class="nav-tab-btn" data-tab="tab-crop">
+        <span>🌾</span> AI Crop Recommender
+      </button>
+      <button class="nav-tab-btn" data-tab="tab-disease">
+        <span>🌿</span> AI Disease Diagnostic Lab
+      </button>
+      <button class="nav-tab-btn" data-tab="tab-irrigation">
+        <span>💧</span> Smart Irrigation & Weather
+      </button>
+      <button class="nav-tab-btn" data-tab="tab-market"><span>🛒</span> Marketplace</button>
+      <button class="nav-tab-btn" data-tab="tab-admin" id="navBtnAdmin" style="display:none; border-color:rgba(239,68,68,0.4); color:#ef4444;">
+        <span>🛡️</span> Admin Dashboard
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main Application Body -->
+  <main class="main-content">
+
+    <!-- ==============================================================
+         TAB 1: Farm IoT Telemetry & Real-Time Cockpit
+         ============================================================== -->
+    <section class="tab-pane active" id="tab-telemetry">
+      <div class="section-banner">
+        <div class="banner-text">
+          <h2>Live Farm Telemetry & Edge Sensor Stream</h2>
+          <p>Real-time micro-climate monitoring streamed from your field sensors.</p>
+        </div>
+        <div class="banner-actions">
+          <button class="btn btn-secondary btn-sm" id="injectTelemetryBtn">
+            ⚡ Refresh Sensor Reading
+          </button>
+          <div class="tech-pill-group">
+            </div>
+        </div>
+      </div>
+
+      <!-- Real-Time Metric Gauges -->
+      <div class="grid-gauges">
+        <!-- 1. Soil Moisture -->
+        <div class="gauge-card moist">
+          <div class="gauge-header">
+            <span>Soil Moisture (VWC)</span>
+            <span>💧</span>
+          </div>
+          <div class="gauge-value-wrap">
+            <span class="gauge-value" id="valMoisture">33.4</span>
+            <span class="gauge-unit">%</span>
+          </div>
+          <div class="gauge-status-bar">
+            <div class="gauge-progress" id="barMoisture" style="width: 33.4%;"></div>
+          </div>
+          <div class="gauge-footer" id="statusMoisture">
+            <span>Threshold: 32%</span>
+            <span>Target: 60%</span>
+          </div>
+        </div>
+
+        <!-- 2. Ambient Air Temp -->
+        <div class="gauge-card temp">
+          <div class="gauge-header">
+            <span>Ambient Air Temp</span>
+            <span>🌡️</span>
+          </div>
+          <div class="gauge-value-wrap">
+            <span class="gauge-value" id="valTemp">28.5</span>
+            <span class="gauge-unit">°C</span>
+          </div>
+          <div class="gauge-status-bar">
+            <div class="gauge-progress" id="barTemp" style="width: 57%; background:#f97316;"></div>
+          </div>
+          <div class="gauge-footer">
+            <span>Soil Temp: <strong id="valSoilTemp">24.2</strong>°C</span>
+            <span>Optimal: 22-30°C</span>
+          </div>
+        </div>
+
+        <!-- 3. Air Humidity -->
+        <div class="gauge-card moist">
+          <div class="gauge-header">
+            <span>Relative Air Humidity</span>
+            <span>💨</span>
+          </div>
+          <div class="gauge-value-wrap">
+            <span class="gauge-value" id="valHumidity">57.0</span>
+            <span class="gauge-unit">%</span>
+          </div>
+          <div class="gauge-status-bar">
+            <div class="gauge-progress" id="barHumidity" style="width: 57%;"></div>
+          </div>
+          <div class="gauge-footer">
+            <span>Canopy Vapor Deficit</span>
+            <span>Safe (No Fungal Risk)</span>
+          </div>
+        </div>
+
+        <!-- 4. Soil NPK Ratio -->
+        <div class="gauge-card npk">
+          <div class="gauge-header">
+            <span>Soil N-P-K (Modbus)</span>
+            <span>🧪</span>
+          </div>
+          <div class="gauge-value-wrap">
+            <span class="gauge-value" id="valNPK">78-44-40</span>
+            <span class="gauge-unit">mg/kg</span>
+          </div>
+          <div class="gauge-status-bar">
+            <div class="gauge-progress" style="width: 75%; background:#10b981;"></div>
+          </div>
+          <div class="gauge-footer">
+            <span>RS485 Multi-Probe</span>
+            <span>Balanced</span>
+          </div>
+        </div>
+
+        <!-- 5. Soil pH -->
+        <div class="gauge-card ph">
+          <div class="gauge-header">
+            <span>Soil Reaction (pH)</span>
+            <span>⚗️</span>
+          </div>
+          <div class="gauge-value-wrap">
+            <span class="gauge-value" id="valPH">6.5</span>
+            <span class="gauge-unit">pH</span>
+          </div>
+          <div class="gauge-status-bar">
+            <div class="gauge-progress" id="barPH" style="width: 46%; background:#8b5cf6;"></div>
+          </div>
+          <div class="gauge-footer">
+            <span>Ideal: 6.0 - 7.2</span>
+            <span>Neutral / Optimal</span>
+          </div>
+        </div>
+
+        <!-- 6. Solar Radiation -->
+        <div class="gauge-card solar">
+          <div class="gauge-header">
+            <span>Solar Irradiance</span>
+            <span>☀️</span>
+          </div>
+          <div class="gauge-value-wrap">
+            <span class="gauge-value" id="valSolar">810</span>
+            <span class="gauge-unit">W/m²</span>
+          </div>
+          <div class="gauge-status-bar">
+            <div class="gauge-progress" id="barSolar" style="width: 68%; background:#f59e0b;"></div>
+          </div>
+          <div class="gauge-footer">
+            <span>Peak Sun Window</span>
+            <span>ET₀: 4.8 mm/d</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts & Field Nodes Grid -->
+      <div class="grid-2">
+        <!-- Live Chart.js Trend View -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span>📈</span> Dynamic Micro-Climate Trend (Soil Moisture vs Temp vs Humidity)
+            </div>
+            <span style="font-size:0.75rem; color:var(--text-muted); font-family:var(--font-mono);">
+              Sampling: 1Hz C-Filtered
+            </span>
+          </div>
+          <div style="height: 280px; position: relative;">
+            <canvas id="telemetryChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Edge Nodes List -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span>📡</span> Connected Field IoT Edge Nodes
+            </div>
+            <span class="badge-ai" style="font-size:0.7rem;">3 Nodes Active</span>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:0.75rem;">
+            <!-- Node 1 -->
+            <div style="padding:0.75rem; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-weight:600; font-size:0.88rem;">NODE-ESP32-01 · Zone 1 (Open Crop Field)</div>
+                <div style="font-size:0.74rem; color:var(--text-muted);">MCU: ESP32-WROOM-32D | Firmware: v2.4.1-C++ | Kalman Filtered</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:0.8rem; font-weight:700; color:#10b981;">● ONLINE (-58 dBm)</div>
+                <div style="font-size:0.72rem; color:var(--text-secondary);">Battery: 96.2%</div>
+              </div>
+            </div>
+
+            <!-- Node 2 -->
+            <div style="padding:0.75rem; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-weight:600; font-size:0.88rem;">NODE-ESP32-02 · Zone 2 (Greenhouse Tomatoes)</div>
+                <div style="font-size:0.74rem; color:var(--text-muted);">MCU: ESP32-S3-WIFI-BLE | Firmware: v2.4.1-C++ | I2C Bus Active</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:0.8rem; font-weight:700; color:#10b981;">● ONLINE (-64 dBm)</div>
+                <div style="font-size:0.72rem; color:var(--text-secondary);">Battery: 91.8%</div>
+              </div>
+            </div>
+
+            <!-- Node 3 -->
+            <div style="padding:0.75rem; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-weight:600; font-size:0.88rem;">NODE-ESP32-03 · Zone 3 (Drip Orchard)</div>
+                <div style="font-size:0.74rem; color:var(--text-muted);">MCU: STM32F401-LoRa | Firmware: v1.8.0-C | Low Power Sleep</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:0.8rem; font-weight:700; color:#10b981;">● ONLINE (-72 dBm)</div>
+                <div style="font-size:0.72rem; color:var(--text-secondary);">Battery: 88.4%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==============================================================
+         TAB 2: AI Crop Recommendation Engine
+         ============================================================== -->
+    <section class="tab-pane" id="tab-crop">
+      <div class="section-banner">
+        <div class="banner-text">
+          <h2>AI Agricultural Decision Intelligence & Crop Recommender</h2>
+          <p>Machine learning model predicts the optimal, highest-yielding crop based on soil chemistry, moisture, and climate.</p>
+        </div>
+        <div class="banner-actions">
+          <div class="tech-pill-group">
+            </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <!-- Soil & Environment Input Controls -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span>🧪</span> Soil & Climatic Parameters</div>
+            <span style="font-size:0.75rem; color:var(--text-muted);">Quick-select soil type:</span>
+          </div>
+
+          <!-- Preset Soil Chips -->
+          <div class="preset-chips">
+            <button class="preset-chip active" data-preset="alluvial">🌾 Alluvial Lowlands</button>
+            <button class="preset-chip" data-preset="loam">🌾 Semi-Arid Loam</button>
+            <button class="preset-chip" data-preset="black">☁️ Black Cotton Soil</button>
+            <button class="preset-chip" data-preset="greenhouse">🍅 Greenhouse Horti-Mix</button>
+          </div>
+
+          <!-- Sliders -->
+          <div class="grid-3" style="margin-bottom:0.75rem;">
+            <div class="form-group">
+              <label class="form-label"><span>Nitrogen (N)</span><span class="val-tag" id="inputNVal">90</span></label>
+              <input type="range" class="form-range" id="inputN" min="10" max="180" value="90">
+            </div>
+            <div class="form-group">
+              <label class="form-label"><span>Phosphorus (P)</span><span class="val-tag" id="inputPVal">42</span></label>
+              <input type="range" class="form-range" id="inputP" min="10" max="120" value="42">
+            </div>
+            <div class="form-group">
+              <label class="form-label"><span>Potassium (K)</span><span class="val-tag" id="inputKVal">40</span></label>
+              <input type="range" class="form-range" id="inputK" min="10" max="120" value="40">
+            </div>
+          </div>
+
+          <div class="grid-2" style="margin-bottom:0.75rem;">
+            <div class="form-group">
+              <label class="form-label"><span>Soil pH</span><span class="val-tag" id="inputPHVal">6.5</span></label>
+              <input type="range" class="form-range" id="inputPH" min="4.0" max="9.0" step="0.1" value="6.5">
+            </div>
+            <div class="form-group">
+              <label class="form-label"><span>Temperature (°C)</span><span class="val-tag" id="inputTempVal">28</span></label>
+              <input type="range" class="form-range" id="inputTemp" min="10" max="45" value="28">
+            </div>
+          </div>
+
+          <div class="grid-2" style="margin-bottom:1.25rem;">
+            <div class="form-group">
+              <label class="form-label"><span>Humidity (%)</span><span class="val-tag" id="inputHumidityVal">80</span></label>
+              <input type="range" class="form-range" id="inputHumidity" min="20" max="95" value="80">
+            </div>
+            <div class="form-group">
+              <label class="form-label"><span>Seasonal Rainfall (mm)</span><span class="val-tag" id="inputRainVal">200</span></label>
+              <input type="range" class="form-range" id="inputRain" min="20" max="350" value="200">
+            </div>
+          </div>
+
+          <button class="btn btn-primary" id="runCropModelBtn" style="width: 100%;">
+            ⚡ Run ML Crop Recommendation Inference
+          </button>
+        </div>
+
+        <!-- ML Recommendation Outcome Card -->
+        <div class="card" id="cropResultCard">
+          <div class="card-header">
+            <div class="card-title"><span>🎯</span> AI Predicted Best Fit Crop</div>
+            <span class="badge-ai" id="recCropScore">85.4% Match</span>
+          </div>
+
+          <!-- Primary Recommendation Header -->
+          <div style="display:flex; align-items:center; gap:1.25rem; padding:1.25rem; background:linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(59, 130, 246, 0.05)); border:1px solid rgba(16, 185, 129, 0.3); border-radius:12px; margin-bottom:1rem;">
+            <div id="recCropIcon" style="font-size:3.5rem;">🌾</div>
+            <div style="flex:1;">
+              <div id="recCropCategory" style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--primary); font-weight:700;">Cereal Crop</div>
+              <h3 id="recCropName" style="font-size:1.75rem; font-weight:800; line-height:1.2;">Rice (Paddy)</h3>
+              <p id="recCropSummary" style="font-size:0.82rem; color:var(--text-secondary); margin-top:0.35rem;">
+                Optimal agronomic fit based on soil nitrogen saturation and seasonal moisture profile.
+              </p>
+            </div>
+          </div>
+
+          <!-- Key Agronomic Projections -->
+          <div class="grid-4" style="margin-bottom:1rem;">
+            <div style="background:var(--bg-surface); border:1px solid var(--border-color); padding:0.65rem; border-radius:8px; text-align:center;">
+              <div style="font-size:0.72rem; color:var(--text-muted);">Cycle Duration</div>
+              <div id="recCropDays" style="font-size:0.95rem; font-weight:700;">120 Days</div>
+            </div>
+            <div style="background:var(--bg-surface); border:1px solid var(--border-color); padding:0.65rem; border-radius:8px; text-align:center;">
+              <div style="font-size:0.72rem; color:var(--text-muted);">Expected Yield</div>
+              <div id="recCropYield" style="font-size:0.95rem; font-weight:700;">3.8 T/ha</div>
+            </div>
+            <div style="background:var(--bg-surface); border:1px solid var(--border-color); padding:0.65rem; border-radius:8px; text-align:center;">
+              <div style="font-size:0.72rem; color:var(--text-muted);">Water Demand</div>
+              <div id="recCropWater" style="font-size:0.95rem; font-weight:700; color:#3b82f6;">High</div>
+            </div>
+            <div style="background:var(--bg-surface); border:1px solid var(--border-color); padding:0.65rem; border-radius:8px; text-align:center;">
+              <div style="font-size:0.72rem; color:var(--text-muted);">Est. Revenue</div>
+              <div id="recCropRevenue" style="font-size:0.95rem; font-weight:700; color:#10b981;">$584 / Acre</div>
+            </div>
+          </div>
+
+          <!-- Macro Nutrients Balance -->
+          <div style="margin-bottom:1rem;">
+            <div style="font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:0.4rem;">Nutrient Envelope Analysis:</div>
+            <div id="recNutrientChips" style="display:flex; flex-wrap:wrap; gap:0.5rem;"></div>
+          </div>
+
+          <!-- Top Alternatives -->
+          <div>
+            <div style="font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:0.5rem;">Alternative Crop Options:</div>
+            <div id="cropAlternativesList"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==============================================================
+         TAB 3: AI Plant Disease Diagnostics Lab
+         ============================================================== -->
+    <section class="tab-pane" id="tab-disease">
+      <div class="section-banner">
+        <div class="banner-text">
+          <h2>AI Plant Pathology & Disease Diagnostic Scanner</h2>
+          <p>Computer vision & pathology engine identifying crop foliar infections, pathogen taxonomy, and biological/chemical remedies.</p>
+        </div>
+        <div class="banner-actions">
+          <div class="tech-pill-group">
+            </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <!-- Image Upload & Preset Leaf Selector -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span>📷</span> Crop Foliage Scanner</div>
+            <span style="font-size:0.75rem; color:var(--text-muted);">Upload or pick sample:</span>
+          </div>
+
+          <!-- Scanner Viewport with Laser Beam Overlay -->
+          <div class="scanner-viewport" id="scannerViewport">
+            <div class="scanner-beam"></div>
+            <div class="scan-bounding-box" id="scanBoundingBox"></div>
+            <img id="leafPreviewImg" src="" style="display:none; max-width:100%; max-height:100%; object-fit:contain;" alt="Uploaded Crop Leaf">
+            <div id="leafPlaceholder" style="text-align:center;">
+              <span style="font-size:4rem;">🍅</span><br>
+              <span style="font-size:0.85rem; color:var(--text-secondary);">Tomato Leaf (Target Specimen)</span>
+            </div>
+          </div>
+
+          <!-- Drag and Drop Upload -->
+          <div class="upload-dropzone" id="diseaseDropzone">
+            <input type="file" id="leafFileInput" accept="image/*" style="display:none;">
+            <div class="dropzone-icon">📁</div>
+            <div style="font-weight:600; font-size:0.9rem;">Click or Drag Leaf Image to Inspect</div>
+            <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">Supports JPG, PNG, WEBP (Camera or Field Sample)</div>
+          </div>
+
+          <!-- Sample Leaves Gallery -->
+          <div style="margin-top:1rem;">
+            <div style="font-size:0.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:0.5rem;">Sample Pathological Specimens:</div>
+            <div class="sample-leaf-grid">
+              <div class="sample-leaf-card active" data-code="TOM-EB-01">
+                <div class="icon">🍅</div>
+                <div class="title">Early Blight</div>
+                <div class="crop">Tomato</div>
+              </div>
+              <div class="sample-leaf-card" data-code="POT-LB-02">
+                <div class="icon">🥔</div>
+                <div class="title">Late Blight</div>
+                <div class="crop">Potato</div>
+              </div>
+              <div class="sample-leaf-card" data-code="RIC-BL-03">
+                <div class="icon">🌾</div>
+                <div class="title">Leaf Blast</div>
+                <div class="crop">Rice</div>
+              </div>
+              <div class="sample-leaf-card" data-code="CRN-NL-04">
+                <div class="icon">🌽</div>
+                <div class="title">Leaf Blight</div>
+                <div class="crop">Maize</div>
+              </div>
+              <div class="sample-leaf-card" data-code="APP-SC-05">
+                <div class="icon">🍎</div>
+                <div class="title">Apple Scab</div>
+                <div class="crop">Apple</div>
+              </div>
+              <div class="sample-leaf-card" data-code="PLT-HL-00">
+                <div class="icon">🌿</div>
+                <div class="title">Healthy Leaf</div>
+                <div class="crop">Universal</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pathology Diagnostic & Countermeasures -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span>🔬</span> Diagnostic Findings & Prescription</div>
+            <span class="badge-ai" id="diagConfidence">96.2% Confidence</span>
+          </div>
+
+          <div style="margin-bottom:1rem; padding:1rem; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.5rem;">
+              <div>
+                <h3 id="diagDiseaseName" style="font-size:1.3rem; font-weight:700;">Tomato Early Blight</h3>
+                <div style="font-size:0.8rem; color:var(--text-secondary);">Affected Crop: <strong id="diagCropName">Tomato</strong></div>
+              </div>
+              <div style="text-align:right;">
+                <span id="diagSeverity" style="font-size:0.8rem; font-weight:700; color:#f59e0b; padding:0.2rem 0.5rem; background:rgba(245,158,11,0.1); border-radius:4px;">
+                  Moderate
+                </span>
+              </div>
+            </div>
+            <div style="font-size:0.78rem; color:var(--text-muted);">
+              <strong>Pathogen:</strong> <span id="diagPathogen">Fungal (Alternaria solani)</span>
+            </div>
+            <div style="font-size:0.82rem; margin-top:0.5rem; line-height:1.4;" id="diagSymptoms">
+              Concentric dark rings (target board spots) on lower leaves, surrounded by yellow chlorotic halo.
+            </div>
+          </div>
+
+          <!-- Countermeasures Tabs -->
+          <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
+            <button class="btn btn-primary btn-sm" id="tabBtnOrganic">🌿 Organic / Bio-Control</button>
+            <button class="btn btn-secondary btn-sm" id="tabBtnChemical">🧪 Chemical Treatment</button>
+          </div>
+
+          <div id="paneOrganic" style="font-size:0.85rem; padding:0.85rem; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); border-radius:8px; margin-bottom:1rem;">
+            <div id="diagOrganic"></div>
+          </div>
+
+          <div id="paneChemical" style="display:none; font-size:0.85rem; padding:0.85rem; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.25); border-radius:8px; margin-bottom:1rem;">
+            <div id="diagChemical"></div>
+          </div>
+
+          <div style="padding:0.75rem; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:8px;">
+            <div style="font-size:0.78rem; font-weight:600; color:var(--text-secondary); margin-bottom:0.25rem;">
+              🛡️ Preventive Cultural Practice:
+            </div>
+            <p id="diagPreventive" style="font-size:0.8rem; color:var(--text-muted); line-height:1.4;"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==============================================================
+         TAB 4: Smart Automated Irrigation & Weather
+         ============================================================== -->
+    <section class="tab-pane" id="tab-irrigation">
+      <div class="section-banner">
+        <div class="banner-text">
+          <h2>Precision Automated Irrigation & Evapotranspiration Control</h2>
+          <p>Closed-loop moisture threshold switching, solenoid actuator telemetry, and micro-climate ET₀ tracking.</p>
+        </div>
+        <div class="banner-actions">
+          <div class="tech-pill-group">
+            </div>
+        </div>
+      </div>
+
+      <!-- Auto Irrigation Master Armed Switch -->
+      <div class="card" style="margin-bottom:1.25rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+        <div style="display:flex; align-items:center; gap:1rem;">
+          <label class="switch">
+            <input type="checkbox" id="autoIrrigationSwitch" checked>
+            <span class="slider"></span>
+          </label>
+          <div>
+            <div style="font-weight:700; font-size:1rem;">AI Autonomous Irrigation Mode</div>
+            <div style="font-size:0.8rem; color:var(--text-secondary);">
+              Automatically triggers solenoid relays when root zone moisture drops &lt; 32%
+            </div>
+          </div>
+        </div>
+        <div id="autoStatusTag" style="font-weight:700; font-size:0.88rem; color:#10b981; font-family:var(--font-mono);">
+          ACTIVE (Threshold 32%)
+        </div>
+      </div>
+
+      <!-- 3-Zone Valve Control Cards -->
+      <div class="grid-3" style="margin-bottom:1.5rem;">
+        <!-- Zone 1 -->
+        <div class="valve-card" id="valveCard1">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.75rem;">
+            <div>
+              <div style="font-size:0.75rem; text-transform:uppercase; color:var(--primary); font-weight:700;">Valve #1</div>
+              <h3 style="font-size:1.1rem; font-weight:700;">Zone 1: Open Field</h3>
+              <div style="font-size:0.76rem; color:var(--text-muted);">Wheat & Rice Sector (12 Acres)</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="valveSwitch1">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="valve-flow-animation"></div>
+          <div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-top:0.5rem;">
+            <span id="valveStatus1"><span style="color:var(--text-muted);">● STANDBY (Closed)</span></span>
+            <span>Used Today: <strong id="valveLiters1">460 L</strong></span>
+          </div>
+        </div>
+
+        <!-- Zone 2 -->
+        <div class="valve-card" id="valveCard2">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.75rem;">
+            <div>
+              <div style="font-size:0.75rem; text-transform:uppercase; color:var(--primary); font-weight:700;">Valve #2</div>
+              <h3 style="font-size:1.1rem; font-weight:700;">Zone 2: Greenhouse</h3>
+              <div style="font-size:0.76rem; color:var(--text-muted);">Hydroponic Tomato Canopy (2 Acres)</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="valveSwitch2">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="valve-flow-animation"></div>
+          <div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-top:0.5rem;">
+            <span id="valveStatus2"><span style="color:var(--text-muted);">● STANDBY (Closed)</span></span>
+            <span>Used Today: <strong id="valveLiters2">180 L</strong></span>
+          </div>
+        </div>
+
+        <!-- Zone 3 -->
+        <div class="valve-card" id="valveCard3">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.75rem;">
+            <div>
+              <div style="font-size:0.75rem; text-transform:uppercase; color:var(--primary); font-weight:700;">Valve #3</div>
+              <h3 style="font-size:1.1rem; font-weight:700;">Zone 3: Drip Orchard</h3>
+              <div style="font-size:0.76rem; color:var(--text-muted);">Citrus & Fruit Trees (5 Acres)</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="valveSwitch3">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="valve-flow-animation"></div>
+          <div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-top:0.5rem;">
+            <span id="valveStatus3"><span style="color:var(--text-muted);">● STANDBY (Closed)</span></span>
+            <span>Used Today: <strong id="valveLiters3">290 L</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Satellite Weather & Evapotranspiration Forecast -->
+      <div class="card" id="liveWeatherCard">
+        <div class="card-header" style="flex-wrap:wrap; gap:0.6rem;">
+          <div style="display:flex; align-items:center; gap:0.6rem;">
+            <div class="card-title" style="margin:0;"><span>🌤️</span> Live Satellite Weather & Agro-Meteorology</div>
+            <span id="weatherLiveBadge" style="display:inline-flex; align-items:center; gap:0.35rem; background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); font-size:0.7rem; font-weight:800; padding:0.15rem 0.5rem; border-radius:99px;">
+              <span style="width:7px; height:7px; border-radius:50%; background:#ef4444; display:inline-block;"></span> LIVE
+            </span>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap; font-size:0.75rem;">
+            <span id="weatherStationLabel" style="color:var(--text-muted); font-weight:600; margin-right:0.3rem;">Station: Detecting location...</span>
+            <button class="btn btn-secondary btn-sm" id="btnWeatherGPS" title="Use Browser Live GPS" style="font-size:0.72rem; padding:0.2rem 0.5rem; gap:0.25rem;">
+              📍 My Location
+            </button>
+            <div style="display:inline-flex; gap:0.2rem;">
+              <button class="btn btn-secondary btn-sm" data-city="Delhi" style="font-size:0.7rem; padding:0.2rem 0.4rem;">Delhi</button>
+              <button class="btn btn-secondary btn-sm" data-city="Karnal" style="font-size:0.7rem; padding:0.2rem 0.4rem;">Karnal</button>
+              <button class="btn btn-secondary btn-sm" data-city="Nashik" style="font-size:0.7rem; padding:0.2rem 0.4rem;">Nashik</button>
+              <button class="btn btn-secondary btn-sm" data-city="Indore" style="font-size:0.7rem; padding:0.2rem 0.4rem;">Indore</button>
+            </div>
+            <div style="display:inline-flex; align-items:center; gap:0.2rem;">
+              <input type="text" id="weatherCityInput" class="form-control" placeholder="Search city..." style="font-size:0.72rem; padding:0.2rem 0.45rem; width:110px; height:auto;">
+              <button class="btn btn-primary btn-sm" id="btnWeatherSearch" style="font-size:0.72rem; padding:0.2rem 0.45rem;">Go</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Current Conditions Summary Banner -->
+        <div id="weatherCurrentBanner" style="padding:1rem 1.25rem; background:linear-gradient(135deg, rgba(16,185,129,0.08), rgba(59,130,246,0.08)); border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+          <!-- Dynamically populated by LiveWeather -->
+        </div>
+
+        <div style="padding:1rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+            <span style="font-size:0.85rem; font-weight:700; color:var(--text-secondary);">📅 5-Day Precision Agro & Evapotranspiration Forecast</span>
+            <span id="weatherLastUpdated" style="font-size:0.72rem; color:var(--text-muted);">Updated: Just now</span>
+          </div>
+          <div class="grid-5" id="weatherForecastGrid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:0.75rem;"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-pane" id="tab-market">
+      <div class="mk-head"><div><h2>🛒 Farm Marketplace</h2><p>Buy fresh produce straight from farms, or sell your own harvest.</p></div>
+        <div style="display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap;">
+          <button class="btn btn-secondary" id="mkCartBtn" style="gap:0.4rem; font-weight:700;">
+            🛒 Cart (<span id="mkCartCount" style="background:var(--primary); color:white; padding:0.1rem 0.45rem; border-radius:99px; font-size:0.75rem; font-weight:700;">0</span>)
+          </button>
+          <button class="btn btn-primary" id="mkSellBtn">＋ Sell Your Produce</button>
+        </div></div>
+      <div class="mk-tools"><input class="form-control" id="mkSearch" placeholder="Search crop, farm or place…"><div id="mkChips" class="mk-chips"></div></div>
+      <div id="mkGrid" class="mk-grid"></div><div id="mkMine" class="mk-mine"></div>
+    </section>
+
+    <!-- ==============================================================
+         TAB 6: Dedicated Admin Management & Master Operations Center
+         ============================================================== -->
+    <section class="tab-pane" id="tab-admin">
+      <div id="adminDashboardRoot">
+        <!-- Rendered dynamically by AdminDashboard -->
+      </div>
+    </section>
+  </main>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- User Login & Signup Modal -->
+  <div class="modal-backdrop" id="authModal" style="display:none;">
+    <div class="auth-modal-card">
+      <div class="auth-modal-header">
+        <div style="display:flex; align-items:center; gap:0.5rem;">
+          <span style="font-size:1.5rem;">🌱</span>
+          <h3 id="authModalTitle" style="font-size:1.15rem; font-weight:700;">Sign In to Smart Agro-Tech</h3>
+        </div>
+        <button class="icon-btn" id="closeAuthModalBtn">&times;</button>
+      </div>
+
+      <!-- Auth Tabs: Login vs Register -->
+      <div class="auth-tab-switch">
+        <button class="auth-switch-btn active" id="switchLoginBtn">Sign In</button>
+        <button class="auth-switch-btn" id="switchRegisterBtn">Create Account</button>
+      </div>
+
+      <!-- Sign In Form -->
+      <form id="loginForm" class="auth-form">
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input type="email" class="form-control" id="loginEmail" placeholder="you@example.com" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" class="form-control" id="loginPassword" placeholder="••••••••" required>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; font-size:0.8rem;">
+          <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer;">
+            <input type="checkbox" id="rememberMe" checked> Remember session
+          </label>
+          
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;" id="submitLoginBtn">
+          Sign In
+        </button>
+
+        <div style="margin-top:1.2rem; padding-top:1rem; border-top:1px dashed var(--border-color); text-align:center;">
+          <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.6rem; font-weight:600;">⚡ Quick 1-Click Demo Accounts (Instant Test):</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
+            <button type="button" class="btn btn-secondary btn-sm" id="quickAdminLoginBtn" style="font-size:0.75rem; border-color:rgba(239,68,68,0.4); color:#ef4444; justify-content:center;">
+              🛡️ Admin Demo
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" id="quickUserLoginBtn" style="font-size:0.75rem; border-color:rgba(16,185,129,0.4); color:#10b981; justify-content:center;">
+              👤 Buyer Demo
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <!-- Register Form -->
+      <form id="registerForm" class="auth-form" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input type="text" class="form-control" id="regFullName" placeholder="Your full name" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input type="email" class="form-control" id="regEmail" placeholder="you@example.com" required>
+        </div>
+        <div class="form-group"><label class="form-label">Phone</label><input type="tel" class="form-control" id="regPhone" placeholder="+91 98xxx xxxxx"></div>
+        <div class="grid-2" style="margin-bottom:0.75rem;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Account Role</label>
+            <select class="form-control" id="regRole">
+              <option value="Customer / Buyer">🛒 Normal Buyer / Customer (सामान्य ग्राहक)</option>
+              <option value="Farmer / Seller">🌾 Farmer / Seller (किसान / विक्रेता)</option>
+              <option value="Admin">🛡️ System Administrator / Manager (एडमिन)</option>
+              <option value="Chief Agronomist & Farm Manager">🔬 Chief Agronomist & Manager</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Farm / Estate Name</label>
+            <input type="text" class="form-control" id="regFarmName" placeholder="GreenHorizon Sector 4">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Create Password (min. 6 characters)</label>
+          <input type="password" class="form-control" id="regPassword" placeholder="••••••••" minlength="6" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;" id="submitRegisterBtn">
+          Create Farm Account
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Application Scripts -->
+  <script src="js/export_utils.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/iot_monitor.js"></script>
+  <script src="js/ai_crop_engine.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/scanner_plus.js"></script>
+  <script src="js/particles.js"></script>
+  <script src="js/irrigation_ctrl.js"></script>
+  <script src="js/live_weather.js"></script>
+  <script src="js/login_log.js"></script>
+  <script src="js/market.js"></script>
+  <script src="js/delivery.js"></script>
+  <script src="js/admin_dashboard.js"></script>
+</body>
+</html>
