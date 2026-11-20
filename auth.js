@@ -6,6 +6,13 @@
  * ============================================================================
  */
 
+const Store = {
+  mem: {},
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return this.mem[k] ?? null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) { this.mem[k] = v; } },
+  remove(k) { try { localStorage.removeItem(k); } catch (e) { delete this.mem[k]; } }
+};
+
 const LocalUsers = {
   KEY: 'agri_registered_users',
 
@@ -34,7 +41,7 @@ const LocalUsers = {
     ];
 
     try {
-      let data = JSON.parse(localStorage.getItem(this.KEY));
+      let data = JSON.parse(Store.get(this.KEY));
       if (Array.isArray(data) && data.length > 0) {
         // Ensure default accounts exist
         defaults.forEach(def => {
@@ -52,7 +59,7 @@ const LocalUsers = {
   },
 
   saveAll(users) {
-    localStorage.setItem(this.KEY, JSON.stringify(users));
+    Store.set(this.KEY, JSON.stringify(users));
   },
 
   register(userData) {
@@ -117,8 +124,8 @@ const Auth = {
   },
 
   loadSession() {
-    const savedUser = localStorage.getItem('agri_auth_user');
-    const savedToken = localStorage.getItem('agri_auth_token');
+    const savedUser = Store.get('agri_auth_user');
+    const savedToken = Store.get('agri_auth_token');
 
     if (savedUser && savedToken) {
       try {
@@ -136,13 +143,9 @@ const Auth = {
   saveSession(user, token) {
     this.currentUser = user;
     this.token = token;
-    localStorage.setItem('agri_auth_user', JSON.stringify(user));
-    localStorage.setItem('agri_auth_token', token);
+    Store.set('agri_auth_user', JSON.stringify(user));
+    Store.set('agri_auth_token', token);
     this.updateHeaderProfile();
-
-    if (window.LoginLog && typeof window.LoginLog.record === 'function') {
-      window.LoginLog.record(user, 'session');
-    }
 
     if (window.Market && typeof window.Market.onAuthChange === 'function') {
       window.Market.onAuthChange();
@@ -163,8 +166,8 @@ const Auth = {
   clearSession() {
     this.currentUser = null;
     this.token = null;
-    localStorage.removeItem('agri_auth_user');
-    localStorage.removeItem('agri_auth_token');
+    Store.remove('agri_auth_user');
+    Store.remove('agri_auth_token');
     this.updateHeaderProfile();
 
     if (window.Market && typeof window.Market.onAuthChange === 'function') {
@@ -277,7 +280,35 @@ const Auth = {
     }
   },
 
+  errText(data, fallback) {
+    const d = data && data.detail;
+    if (typeof d === 'string') return d;
+    if (Array.isArray(d) && d[0] && d[0].msg) return d[0].msg;
+    return fallback;
+  },
+
+  /** POST to the backend. Never throws. reachable=false means "use offline mode". */
+  async backendCall(path, body) {
+    if (!window.App) return { reachable: false };
+    const isLocalApi = /127\.0\.0\.1|localhost/.test(App.apiBase);
+    try {
+      const res = await fetch(`${App.apiBase}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: window.timeoutSignal ? window.timeoutSignal(isLocalApi ? 6000 : 25000) : undefined
+      });
+      let data = null;
+      try { data = await res.json(); } catch (e) {}
+      return { reachable: true, ok: res.ok, status: res.status, data };
+    } catch (e) {
+      return { reachable: false };
+    }
+  },
+
   bindForms() {
+    const toast = (m, t) => { if (window.App?.toast) App.toast(m, t); };
+
     // 1. Login Form Submit
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
@@ -287,57 +318,33 @@ const Auth = {
         const password = document.getElementById('loginPassword')?.value;
         const submitBtn = document.getElementById('submitLoginBtn');
 
-        if (!email || !password) {
-          if (window.App?.toast) App.toast("Please fill in email and password.", "error");
-          return;
-        }
+        if (!email || !password) return toast("Please fill in email and password.", "error");
 
-        if (submitBtn) {
-          submitBtn.disabled = true;
-          submitBtn.textContent = 'Verifying...';
-        }
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Verifying...'; }
 
         try {
-          if (window.App && App.isBackendLive) {
-            const res = await fetch(`${App.apiBase}/api/auth/login`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email, password })
-            });
-
-            if (res.ok) {
-              const data = await res.json();
-              this.saveSession(data.user, data.token);
-              this.hideModal();
-              if (window.App?.toast) App.toast(data.message || `Welcome back, ${data.user.full_name}!`, "success");
-              return;
-            } else {
-              const err = await res.json();
-              if (window.App?.toast) App.toast(err.detail || "Authentication failed.", "error");
-              return;
-            }
+          // a) Shared backend account (works on every device)
+          const r = await this.backendCall('/api/auth/login', { email, password });
+          if (r.reachable && r.ok && r.data && r.data.user) {
+            this.saveSession(r.data.user, r.data.token || ('backend-token-' + Date.now()));
+            this.hideModal();
+            return toast(r.data.message || `Welcome back, ${r.data.user.full_name}!`, "success");
           }
-        } catch (err) {
-          // Backend offline -> proceed to local check
+
+          // b) Offline / demo accounts stored in this browser
+          const local = LocalUsers.login(email, password);
+          if (local.ok) {
+            this.saveSession(local.user, 'local-token-' + Date.now());
+            this.hideModal();
+            return toast(`Welcome back, ${local.user.full_name}!`, "success");
+          }
+
+          // c) Failed everywhere - show the most useful message
+          let msg = local.error;
+          if (r.reachable && [400, 401, 409, 422].includes(r.status)) msg = this.errText(r.data, msg);
+          toast(msg, "error");
         } finally {
-          if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Sign In';
-          }
-        }
-
-        // Local Offline Authentication Check
-        const result = LocalUsers.login(email, password);
-        if (result.ok) {
-          this.saveSession(result.user, 'local-token-' + Date.now());
-          this.hideModal();
-          if (window.App?.toast) {
-            App.toast(`Welcome back, ${result.user.full_name}!`, "success");
-          }
-        } else {
-          if (window.App?.toast) {
-            App.toast(result.error, "error");
-          }
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Sign In'; }
         }
       });
     }
@@ -349,80 +356,43 @@ const Auth = {
         e.preventDefault();
         const fullName = document.getElementById('regFullName')?.value.trim();
         const email = document.getElementById('regEmail')?.value.trim();
+        const phone = document.getElementById('regPhone')?.value.trim() || '';
         const role = document.getElementById('regRole')?.value;
         const farmName = document.getElementById('regFarmName')?.value.trim() || 'GreenHorizon Sector 4';
         const password = document.getElementById('regPassword')?.value;
         const submitBtn = document.getElementById('submitRegisterBtn');
 
-        if (!fullName || !email || !password) {
-          if (window.App?.toast) App.toast("Please fill in all required fields.", "error");
-          return;
-        }
+        if (!fullName || !email || !password) return toast("Please fill in all required fields.", "error");
+        if (password.length < 6) return toast("Password must be at least 6 characters.", "error");
 
-        if (password.length < 6) {
-          if (window.App?.toast) App.toast("Password must be at least 6 characters.", "error");
-          return;
-        }
-
-        if (submitBtn) {
-          submitBtn.disabled = true;
-          submitBtn.textContent = 'Creating Account...';
-        }
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Creating Account...'; }
 
         try {
-          if (window.App && App.isBackendLive) {
-            const res = await fetch(`${App.apiBase}/api/auth/signup`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                full_name: fullName,
-                email: email,
-                password: password,
-                role: role,
-                farm_name: farmName
-              })
-            });
+          const r = await this.backendCall('/api/auth/signup', {
+            full_name: fullName, email, password, role, farm_name: farmName, phone
+          });
 
-            if (res.ok) {
-              const data = await res.json();
-              this.saveSession(data.user, data.token);
-              this.hideModal();
-              if (window.App?.toast) App.toast(data.message || `Account created! Welcome, ${fullName}.`, "success");
-              return;
-            } else {
-              const err = await res.json();
-              if (window.App?.toast) App.toast(err.detail || "Registration failed.", "error");
-              return;
-            }
+          if (r.reachable && r.ok && r.data && r.data.user) {
+            this.saveSession(r.data.user, r.data.token || ('backend-token-' + Date.now()));
+            this.hideModal();
+            return toast(r.data.message || `Account created! Welcome, ${fullName}.`, "success");
           }
-        } catch (err) {
-          // Backend offline -> proceed to local registration
+          // Backend answered with a real validation error (e.g. email already used) - don't create a local duplicate
+          if (r.reachable && [400, 409, 422].includes(r.status)) {
+            return toast(this.errText(r.data, "Registration failed."), "error");
+          }
+
+          // Backend not reachable (or has no auth API) -> register in this browser only
+          const result = LocalUsers.register({ full_name: fullName, email, password, role, farm_name: farmName, phone });
+          if (result.ok) {
+            this.saveSession(result.user, 'local-token-' + Date.now());
+            this.hideModal();
+            toast(`Account created! Welcome to Smart Agriculture, ${fullName}.`, "success");
+          } else {
+            toast(result.error, "error");
+          }
         } finally {
-          if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Create Farm Account';
-          }
-        }
-
-        // Local Offline Registration
-        const result = LocalUsers.register({
-          full_name: fullName,
-          email: email,
-          password: password,
-          role: role,
-          farm_name: farmName
-        });
-
-        if (result.ok) {
-          this.saveSession(result.user, 'local-token-' + Date.now());
-          this.hideModal();
-          if (window.App?.toast) {
-            App.toast(`Account created! Welcome to Smart Agriculture, ${fullName}.`, "success");
-          }
-        } else {
-          if (window.App?.toast) {
-            App.toast(result.error, "error");
-          }
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Create Farm Account'; }
         }
       });
     }
