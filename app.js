@@ -6,7 +6,7 @@
  */
 
 const App = {
-  apiBase: 'http://127.0.0.1:8000',
+  apiBase: 'https://ai-smart-agriculture-assistant-iu8u.onrender.com',
   nodeGatewayBase: 'http://127.0.0.1:5001',
   isBackendLive: false,
   isGatewayLive: false,
@@ -17,8 +17,8 @@ const App = {
     this.initTheme();
     this.checkConnections();
     
-    // Periodically verify connection every 6 seconds
-    setInterval(() => this.checkConnections(), 6000);
+    // Periodically verify connection every 10 seconds
+    setInterval(() => this.checkConnections(), 10000);
 
     console.log("🌾 [AI Smart Agriculture Assistant] initialized successfully.");
   },
@@ -92,44 +92,23 @@ const App = {
     const statusDot = document.getElementById('statusDot');
     const statusText = document.getElementById('statusText');
 
-    // GitHub Pages (HTTPS) par local 127.0.0.1 check skip karein
-    if (window.location.hostname.includes('github.io')) {
-      this.isBackendLive = false;
-      this.isGatewayLive = false;
-      if (statusDot) statusDot.className = 'status-dot simulated';
-      if (statusText) statusText.innerHTML = '🟡 Standalone Simulation Mode (Ready)';
-      return;
-    }
-
     try {
-      const res = await fetch(`${this.apiBase}/api/status`, { signal: AbortSignal.timeout(1800) });
+      const res = await fetch(`${this.apiBase}/api/status`, { signal: AbortSignal.timeout(8000) });
       if (res.ok) {
         this.isBackendLive = true;
         if (statusDot) statusDot.className = 'status-dot';
-        if (statusText) statusText.innerHTML = '🟢 Python Backend Live &nbsp;|&nbsp; SQL Connected';
+        if (statusText) statusText.innerHTML = '🟢 Python Backend Live &nbsp;|&nbsp; Render Connected';
         return;
       }
     } catch (e) {
-      // Backend not running
-    }
-
-    try {
-      const resNode = await fetch(`${this.nodeGatewayBase}/status`, { signal: AbortSignal.timeout(1200) });
-      if (resNode.ok) {
-        this.isGatewayLive = true;
-        if (statusDot) statusDot.className = 'status-dot';
-        if (statusText) statusText.innerHTML = '🟢 Node.js Gateway Live &nbsp;|&nbsp; Python Standby';
-        return;
-      }
-    } catch (e) {
-      // Gateway not running
+      // Backend waking up or unreachable
     }
 
     // Fallback Standalone Simulation Mode
     this.isBackendLive = false;
     this.isGatewayLive = false;
     if (statusDot) statusDot.className = 'status-dot simulated';
-    if (statusText) statusText.innerHTML = '🟡 Standalone Simulation Mode (Ready)';
+    if (statusText) statusText.innerHTML = '🟡 Standalone Simulation Mode (Waking Server...)';
   },
 
   toast(message, type = 'info') {
