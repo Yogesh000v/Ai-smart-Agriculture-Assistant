@@ -8,14 +8,14 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 
 load_dotenv()
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY") or "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"
+OPENROUTER_API_KEY = (os.getenv("OPENROUTER_API_KEY") or "").strip()
 
-app = FastAPI()
+app = FastAPI(title="AI Smart Agriculture Assistant API")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -23,10 +23,16 @@ app.add_middleware(
 class VisionRequest(BaseModel):
     image_base64: str
 
+@app.get("/")
 @app.get("/api/health")
 @app.get("/api/status")
 def status_check():
-    return {"status": "ok", "online": True, "mode": "live"}
+    return {
+        "status": "ok",
+        "online": True,
+        "mode": "live",
+        "api_key_configured": bool(OPENROUTER_API_KEY)
+    }
 
 @app.get("/api/sensors/latest")
 def sensors_latest():
@@ -35,7 +41,7 @@ def sensors_latest():
 @app.post("/api/ai/vision-analyze")
 def vision_analyze(req: VisionRequest):
     if not OPENROUTER_API_KEY:
-        raise HTTPException(status_code=500, detail="OPENROUTER_API_KEY missing")
+        raise HTTPException(status_code=500, detail="OPENROUTER_API_KEY missing on server")
 
     image_url = req.image_base64 if req.image_base64.startswith("data:") else f"data:image/jpeg;base64,{req.image_base64}"
 
@@ -99,13 +105,13 @@ def vision_analyze(req: VisionRequest):
                 headers={
                     "Authorization": f"Bearer {OPENROUTER_API_KEY}",
                     "Content-Type": "application/json",
-                    "HTTP-Referer": "http://localhost:8000",
+                    "HTTP-Referer": "https://yogesh000v.github.io/Ai-smart-Agriculture-Assistant/",
                     "X-Title": "AI Smart Agriculture"
                 },
                 method="POST"
             )
 
-            with urllib.request.urlopen(request, timeout=12) as resp:
+            with urllib.request.urlopen(request, timeout=35) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
                 raw_text = result["choices"][0]["message"]["content"].strip()
 
