@@ -49,7 +49,7 @@ const LoginLog = {
     const A = window.Auth;
     if (A && typeof A.saveSession === 'function') {
       const origSave = A.saveSession.bind(A);
-      A.saveSession = (u, t) => { origSave(u, t); this.record(u, String(t).startsWith('simulated') ? 'offline' : 'backend'); };
+      A.saveSession = (u, t) => { origSave(u, t); this.record(u, /^(local|simulated)/.test(String(t)) ? 'offline' : 'backend'); };
     }
     if (A && typeof A.updateHeaderProfile === 'function') {
       const origHdr = A.updateHeaderProfile.bind(A);

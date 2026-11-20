@@ -785,22 +785,40 @@ const ScannerPlus = {
     });
   },
 
-  async fromBackend(file) {
+  /** Shrink the photo (phone cameras give 4-12 MB) so it uploads fast on mobile data. */
+  async prepareUpload(file, img) {
+    try {
+      const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+      const MAX = 1024, sc = Math.min(1, MAX / Math.max(iw, ih));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(iw * sc));
+      c.height = Math.max(1, Math.round(ih * sc));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      const out = c.toDataURL('image/jpeg', 0.85);
+      if (out && out.length > 200) return out;
+    } catch (e) { /* fall through to raw file */ }
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+  },
+
+  async fromBackend(file, img) {
     const base = (window.App && App.apiBase) ? App.apiBase : 'http://127.0.0.1:8000';
     try {
-      const dataUrl = await new Promise((res, rej) => {
-        const r = new FileReader();
-        r.onload = () => res(r.result);
-        r.onerror = rej;
-        r.readAsDataURL(file);
-      });
+      const dataUrl = await this.prepareUpload(file, img);
       const r = await fetch(`${base}/api/ai/vision-analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image_base64: dataUrl }),
-        signal: AbortSignal.timeout(20000)
+        signal: window.timeoutSignal ? window.timeoutSignal(75000) : undefined
       });
-      if (!r.ok) return null;
+      if (!r.ok) {
+        console.warn('[ScannerPlus] Backend AI returned HTTP', r.status);
+        return null;
+      }
       const j = await r.json();
       return j && (j.condition || j.crop) ? j : null;
     } catch (e) {
@@ -814,7 +832,7 @@ const ScannerPlus = {
     const toast = (m, t) => { if (window.App?.toast) App.toast(m, t); };
 
     if (!/^image\//.test(file.type || 'image/jpeg')) return toast('Please choose a valid image file (JPG, PNG, WEBP).', 'error');
-    if (file.size > 15 * 1024 * 1024) return toast('Image too large (max 15 MB).', 'error');
+    if (file.size > 50 * 1024 * 1024) return toast('Image too large (max 50 MB).', 'error');
 
     const my = ++this.scanId;
     const url = URL.createObjectURL(file);
@@ -846,10 +864,11 @@ const ScannerPlus = {
     const t0 = performance.now();
     try {
       const analysis = this.analyse(img);
-      const ai = await this.fromBackend(file);
+      const ai = await this.fromBackend(file, img);
       const wait = 900 - (performance.now() - t0);
       if (wait > 0) await new Promise(r => setTimeout(r, wait));
       if (my !== this.scanId) return;
+      if (!ai) toast('AI server could not be reached, so this is an offline estimate. Please confirm the crop below.', 'info');
 
       let guess = this.detectCropType(file, analysis);
       const aiKey = ai && ai.crop ? this.cropFromText(ai.crop) : null;

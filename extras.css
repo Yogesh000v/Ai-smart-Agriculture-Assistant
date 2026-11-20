@@ -368,3 +368,13 @@
     height: 400px;
   }
 }
+
+
+/* ---- Login modal must stay usable on small phones ---- */
+#authModal { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.auth-modal-card { max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); overflow-y: auto; }
+.auth-modal-card.auth-split { overflow-y: auto; }
+@media (max-width: 640px) {
+  .auth-body { padding: 1.1rem; }
+  .auth-modal-card .form-control { font-size: 16px; } /* stops iOS auto-zoom on focus */
+}
